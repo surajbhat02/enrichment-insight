@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -30,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Card } from "@/components/ui/card"; // Added Card import
 import type { JobStatus } from "@/types";
 
 
@@ -40,32 +41,49 @@ const jobStatuses: JobStatus[] = ["completed", "running", "failed", "pending"];
 
 const filterFormSchema = z.object({
   datasetType: z.string().optional(),
-  status: z.string().optional(), // Consider using z.enum(jobStatuses) if strict validation is needed
+  status: z.string().optional(), // Consider using z.enum([...jobStatuses, 'all']) if strict validation is needed
   dateRange: z.object({
     from: z.date().optional(),
     to: z.date().optional(),
   }).optional(),
 });
 
-type FilterFormValues = z.infer<typeof filterFormSchema>;
+// Explicitly type the form values including the "all" possibility for select defaults
+type FilterFormValuesInput = z.infer<typeof filterFormSchema> & {
+    datasetType?: string | 'all';
+    status?: string | 'all';
+};
+
+// Type for the filters passed to the handler (without "all")
+type FilterValues = Omit<FilterFormValuesInput, 'datasetType' | 'status'> & {
+    datasetType?: string;
+    status?: string;
+};
+
 
 interface FilterSectionProps {
-    onApplyFilters: (filters: FilterFormValues) => void;
+    onApplyFilters: (filters: FilterValues) => void;
 }
 
 export function FilterSection({ onApplyFilters }: FilterSectionProps) {
-  const form = useForm<FilterFormValues>({
+  const form = useForm<FilterFormValuesInput>({ // Use the input type here
     resolver: zodResolver(filterFormSchema),
     defaultValues: {
-        datasetType: '',
-        status: '',
+        datasetType: 'all', // Use 'all' instead of ''
+        status: 'all',      // Use 'all' instead of ''
         dateRange: { from: undefined, to: undefined }
     }
   });
 
-  function onSubmit(data: FilterFormValues) {
-    console.log("Applying filters:", data);
-    onApplyFilters(data);
+ function onSubmit(data: FilterFormValuesInput) {
+    // Create a clean filter object to pass, converting "all" to undefined
+    const cleanFilters: FilterValues = {
+        dateRange: data.dateRange,
+        datasetType: data.datasetType === 'all' ? undefined : data.datasetType,
+        status: data.status === 'all' ? undefined : data.status,
+    };
+    console.log("Applying filters:", cleanFilters);
+    onApplyFilters(cleanFilters);
     // TODO: Trigger data refetch for the grid based on these filters
   }
 
@@ -86,7 +104,8 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    {/* Use 'all' as value instead of empty string */}
+                    <SelectItem value="all">All Types</SelectItem>
                     {datasetTypes.map((type) => (
                       <SelectItem key={type} value={type}>
                         {type}
@@ -112,7 +131,8 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">All Statuses</SelectItem>
+                     {/* Use 'all' as value instead of empty string */}
+                    <SelectItem value="all">All Statuses</SelectItem>
                     {jobStatuses.map((status) => (
                       <SelectItem key={status} value={status}>
                         {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -182,5 +202,3 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
   );
 }
 
-// Added Card import
-import { Card } from "@/components/ui/card";
