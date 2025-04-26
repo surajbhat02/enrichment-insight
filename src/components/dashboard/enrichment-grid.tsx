@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -8,46 +9,48 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight, CheckCircle, Loader, XCircle, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, formatDistanceToNow } from 'date-fns';
-import { cn } from "@/lib/utils"; // Import the cn utility function
+import { cn } from "@/lib/utils";
 
-// Placeholder Data - Replace with actual fetched data and AG Grid
+// Placeholder Data - Use static dates to avoid hydration issues
+const baseTime = new Date(2024, 3, 25, 10, 0, 0); // Example: April 25, 2024 10:00:00
+
 const placeholderJobs: EnrichmentJob[] = [
   {
     id: "job-001",
     name: "Customer Data Cleansing",
     status: "completed",
-    startTime: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    endTime: new Date(Date.now() - 1000 * 60 * 30),     // 30 mins ago
+    startTime: new Date(baseTime.getTime() - 1000 * 60 * 60 * 2), // 8:00 AM
+    endTime: new Date(baseTime.getTime() - 1000 * 60 * 30),     // 9:30 AM
     datasetType: "Customer",
     dependentJobs: [
-      { id: "dep-001a", name: "Address Validation", status: "completed", startTime: new Date(Date.now() - 1000 * 60 * 60 * 2), endTime: new Date(Date.now() - 1000 * 60 * 50), datasetType: "Customer" },
-      { id: "dep-001b", name: "Duplicate Check", status: "completed", startTime: new Date(Date.now() - 1000 * 60 * 45), endTime: new Date(Date.now() - 1000 * 60 * 30), datasetType: "Customer" },
+      { id: "dep-001a", name: "Address Validation", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 60 * 2), endTime: new Date(baseTime.getTime() - 1000 * 60 * 50), datasetType: "Customer" }, // 8:00 AM -> 9:10 AM
+      { id: "dep-001b", name: "Duplicate Check", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 45), endTime: new Date(baseTime.getTime() - 1000 * 60 * 30), datasetType: "Customer" }, // 9:15 AM -> 9:30 AM
     ],
   },
   {
     id: "job-002",
     name: "Product Feature Extraction",
     status: "running",
-    startTime: new Date(Date.now() - 1000 * 60 * 15), // 15 mins ago
+    startTime: new Date(baseTime.getTime() - 1000 * 60 * 15), // 9:45 AM
     datasetType: "Product",
     dependentJobs: [
-       { id: "dep-002a", name: "Image Analysis", status: "running", startTime: new Date(Date.now() - 1000 * 60 * 15), datasetType: "Product" },
-       { id: "dep-002b", name: "Text Description NLP", status: "pending", startTime: new Date(Date.now() - 1000 * 60 * 5), datasetType: "Product" }, // Changed pending startTime
+       { id: "dep-002a", name: "Image Analysis", status: "running", startTime: new Date(baseTime.getTime() - 1000 * 60 * 15), datasetType: "Product" }, // 9:45 AM
+       { id: "dep-002b", name: "Text Description NLP", status: "pending", startTime: new Date(baseTime.getTime() - 1000 * 60 * 5), datasetType: "Product" }, // 9:55 AM (as pending)
     ],
   },
   {
     id: "job-003",
     name: "Sales Data Aggregation",
     status: "failed",
-    startTime: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    endTime: new Date(Date.now() - 1000 * 60 * 60 * 23), // 23 hours ago
+    startTime: new Date(baseTime.getTime() - 1000 * 60 * 60 * 24), // April 24, 10:00 AM
+    endTime: new Date(baseTime.getTime() - 1000 * 60 * 60 * 23), // April 24, 11:00 AM
     datasetType: "Sales",
   },
    {
     id: "job-004",
     name: "Inventory Stock Update",
     status: "pending",
-    startTime: new Date(Date.now() + 1000 * 60 * 30), // Scheduled 30 mins from now
+    startTime: new Date(baseTime.getTime() + 1000 * 60 * 30), // 10:30 AM (Scheduled)
     datasetType: "Inventory",
   },
 ];
@@ -60,17 +63,30 @@ const statusStyles: Record<JobStatus, { icon: React.ReactNode; variant: "default
     pending: { icon: <Circle className="h-4 w-4" />, variant: "outline", className: "bg-gray-100 text-gray-600 border-gray-300" },
 };
 
+// Helper to format date/time consistently for SSR
+const formatAbsoluteDateTime = (date?: Date): string => {
+  if (!date) return '-';
+  return format(date, "MMM d, yyyy HH:mm");
+};
+
 function JobRow({ job, level = 0, isExpanded, onToggleExpand }: { job: EnrichmentJob; level?: number; isExpanded: boolean; onToggleExpand: (id: string) => void }) {
   const hasChildren = job.dependentJobs && job.dependentJobs.length > 0;
   const statusInfo = statusStyles[job.status];
+  const [isMounted, setIsMounted] = React.useState(false);
+
+   React.useEffect(() => {
+    setIsMounted(true); // Component did mount
+  }, []);
 
   const formatDateTime = (date?: Date) => {
     if (!date) return '-';
-    // Show full date if older than a day, otherwise relative time
-    if (Date.now() - date.getTime() > 1000 * 60 * 60 * 24) {
-       return format(date, "MMM d, yyyy HH:mm");
+
+    // On the client, after mount, use relative time if recent, otherwise absolute
+    if (isMounted && Date.now() - date.getTime() <= 1000 * 60 * 60 * 24) {
+       return formatDistanceToNow(date, { addSuffix: true });
     }
-    return formatDistanceToNow(date, { addSuffix: true });
+    // For SSR or older dates on client, use absolute format
+    return formatAbsoluteDateTime(date);
   }
 
 
@@ -124,7 +140,11 @@ export function EnrichmentGrid({ jobs }: EnrichmentGridProps) {
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  if (!jobs || jobs.length === 0) {
+  // Use placeholderJobs for default props to ensure SSR consistency
+  const displayJobs = jobs ?? placeholderJobs;
+
+
+  if (!displayJobs || displayJobs.length === 0) {
     return (
       <Card className="mt-6 shadow-sm">
         <CardHeader>
@@ -144,11 +164,6 @@ export function EnrichmentGrid({ jobs }: EnrichmentGridProps) {
         <CardTitle>Enrichment Runs</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* AG Grid Placeholder */}
-        {/* <div className="ag-theme-quartz" style={{ height: 500, width: '100%' }}>
-            <p className="p-4 text-muted-foreground">AG Grid will be integrated here.</p>
-            <p className="p-4 text-muted-foreground"> Requires installing 'ag-grid-react' and 'ag-grid-community'.</p>
-         </div> */}
          {/* Basic Table Implementation */}
          <Table>
             <TableHeader>
@@ -161,7 +176,7 @@ export function EnrichmentGrid({ jobs }: EnrichmentGridProps) {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                 {jobs.map((job) => (
+                 {displayJobs.map((job) => (
                     <JobRow
                         key={job.id}
                         job={job}
@@ -176,7 +191,8 @@ export function EnrichmentGrid({ jobs }: EnrichmentGridProps) {
   );
 }
 
-// Placeholder data needs to be outside the component for the default prop assignment
+// Assign default props using the static placeholder data
 EnrichmentGrid.defaultProps = {
   jobs: placeholderJobs,
 };
+
