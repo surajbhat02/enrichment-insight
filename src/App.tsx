@@ -1,15 +1,12 @@
+import * as React from 'react';
+import { SaltProvider, StackLayout } from '@salt-ds/core';
+import { Navbar } from '@/components/layout/navbar';
+import { JobStatusCards } from '@/features/enrichment-monitoring/components/job-status-cards';
+import { FilterSection, type FilterValues } from '@/features/enrichment-monitoring/components/filter-section';
+import { EnrichmentGrid } from '@/features/enrichment-monitoring/components/enrichment-grid';
+import type { EnrichmentJob } from '@/types';
 
-"use client"; // Required for state and event handlers
-
-import * as React from "react";
-import { Navbar } from "@/components/layout/navbar"; // Assuming Navbar is adapted for Salt
-import { JobStatusCards } from "@/features/enrichment-monitoring/components/job-status-cards";
-import { FilterSection, type FilterValues } from "@/features/enrichment-monitoring/components/filter-section";
-import { EnrichmentGrid } from "@/features/enrichment-monitoring/components/enrichment-grid";
-import type { EnrichmentJob, JobStatus } from "@/types";
-import { StackLayout, FlowLayout } from "@salt-ds/core"; // Use Salt layout components
-
-// --- Placeholder Data (Keep as is) ---
+// --- Placeholder Data (Copied from original page.tsx) ---
 const baseTime = new Date(2024, 3, 25, 10, 0, 0);
 const allJobs: EnrichmentJob[] = [
   {
@@ -68,11 +65,10 @@ const allJobs: EnrichmentJob[] = [
 ];
 // --- End Placeholder Data ---
 
-
-export default function Home() {
+function App() {
   const [filteredJobs, setFilteredJobs] = React.useState<EnrichmentJob[]>(allJobs);
 
-  // --- Filtering Logic (Keep as is) ---
+  // --- Filtering Logic (Copied from original page.tsx) ---
   const handleApplyFilters = (filters: FilterValues) => {
     let tempJobs = [...allJobs];
 
@@ -96,27 +92,47 @@ export default function Home() {
   };
   // --- End Filtering Logic ---
 
+
+  // Theme setup from original layout.tsx
+  const themeOverrides = {
+    primary: {
+        50: "hsl(235, 60%, 90%)", 100: "hsl(235, 61%, 80%)", 200: "hsl(235, 61%, 70%)",
+        300: "hsl(235, 61%, 60%)", 400: "hsl(235, 62%, 50%)", 500: "hsl(235, 62%, 40%)",
+        600: "hsl(235, 62%, 29%)", 700: "hsl(235, 63%, 25%)", 800: "hsl(235, 63%, 20%)",
+        900: "hsl(235, 65%, 15%)"
+    },
+    accent: {
+        50: "hsl(187, 90%, 90%)", 100: "hsl(187, 95%, 80%)", 200: "hsl(187, 100%, 70%)",
+        300: "hsl(187, 100%, 60%)", 400: "hsl(187, 100%, 50%)", 500: "hsl(187, 100%, 44%)",
+        600: "hsl(187, 100%, 38%)", 700: "hsl(187, 100%, 32%)", 800: "hsl(187, 100%, 26%)",
+        900: "hsl(187, 100%, 20%)"
+    },
+  };
+
+  const saltThemeProps = {
+     '--salt-container-background-medium': 'hsl(0, 0%, 93%)',
+     '--salt-container-background-low': 'hsl(0, 0%, 98%)',
+     '--salt-content-primary-foreground': 'hsl(0, 0%, 4%)',
+     '--salt-text-primary-foreground': 'hsl(0, 0%, 4%)',
+     '--salt-actionable-primary-foreground-default': 'hsl(0, 0%, 98%)',
+     '--salt-actionable-cta-foreground-default': 'hsl(0, 0%, 98%)',
+     '--salt-selectable-cta-foreground-selected': 'hsl(0, 0%, 98%)',
+     '--salt-separable-primary-borderColor': 'hsl(0, 0%, 88%)',
+  };
+
+
   return (
-    <StackLayout // Use StackLayout for vertical arrangement
-      direction="column"
-      style={{ minHeight: '100vh' }} // Ensure layout takes full height
-    >
-      <Navbar />
-       {/* Use StackLayout for main content with padding */}
-      <StackLayout
-        gap={3} // Adjust gap as needed (Salt uses multipliers of 4px)
-        style={{ padding: 'var(--salt-spacing-3)', flexGrow: 1 }} // Use Salt spacing tokens
-      >
-          {/* Job Status Cards */}
-          <JobStatusCards />
-
-          {/* Filter Section */}
-          <FilterSection onApplyFilters={handleApplyFilters}/>
-
-          {/* Enrichment Grid */}
-          <EnrichmentGrid jobs={filteredJobs} />
-      </StackLayout>
-    </StackLayout>
+    <SaltProvider applyClassesTo={'html'} themeOverrides={themeOverrides} theme={saltThemeProps} density="medium" mode="light">
+        <StackLayout direction="column" style={{ minHeight: '100vh' }}>
+          <Navbar />
+          <StackLayout gap={3} style={{ padding: 'var(--salt-spacing-3)', flexGrow: 1 }}>
+              <JobStatusCards />
+              <FilterSection onApplyFilters={handleApplyFilters}/>
+              <EnrichmentGrid jobs={filteredJobs} />
+          </StackLayout>
+        </StackLayout>
+     </SaltProvider>
   );
 }
 
+export default App;

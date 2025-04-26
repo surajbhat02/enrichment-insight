@@ -1,11 +1,8 @@
-
-"use client";
-
 import * as React from "react";
 import type { EnrichmentJob, JobStatus } from "@/types";
-import { DataGrid, Column, RowSelectionCheckboxColumn, CellRendererProps, ExpanderColumn, RowKeyGetter } from "@salt-ds/lab";
-import { Badge, Text, FlexLayout, Panel, StatusIndicator } from "@salt-ds/core"; // Use Panel instead of Card
-import { CheckSolidIcon, RefreshIcon, ErrorIcon, ClockIcon, InfoIcon } from "@salt-ds/icons"; // Salt icons
+import { DataGrid, Column, CellRendererProps, ExpanderColumn, RowKeyGetter } from "@salt-ds/lab";
+import { Text, FlexLayout, Panel, StatusIndicator } from "@salt-ds/core"; // Use Panel instead of Card
+import { CheckSolidIcon, RefreshIcon, ErrorIcon, ClockIcon } from "@salt-ds/icons"; // Salt icons
 import { format } from 'date-fns';
 
 // --- Placeholder Data (Keep as is) ---
@@ -81,7 +78,7 @@ const DateCell = ({ value }: CellRendererProps<EnrichmentJob, Date | undefined>)
   try {
      return <Text>{format(value, "MMM d, yyyy HH:mm:ss")}</Text>;
   } catch (e) {
-    // Handle potential invalid date objects during SSR/hydration mismatches
+    // Handle potential invalid date objects
     console.error("Error formatting date:", value, e);
     return <Text>Invalid Date</Text>;
   }
@@ -102,10 +99,7 @@ interface EnrichmentGridProps {
 }
 
 export function EnrichmentGrid({ jobs }: EnrichmentGridProps) {
-    // Use placeholderJobs for default props to ensure SSR consistency
     const displayJobs = jobs && jobs.length > 0 ? jobs : placeholderJobs;
-
-    // State for expanded rows is handled internally by DataGrid via `isRowExpanded`/`setRowExpanded`
 
     if (!displayJobs || displayJobs.length === 0) {
     return (
@@ -128,8 +122,6 @@ export function EnrichmentGrid({ jobs }: EnrichmentGridProps) {
                 zebra={true}
                 // For nested data:
                 getChildRows={getChildRows}
-                // isRowExpanded={isRowExpanded} // Control expanded state if needed externally
-                // setRowExpanded={setRowExpanded} // Control expanded state if needed externally
             >
                 {/* Expander column for nested rows */}
                 <ExpanderColumn<EnrichmentJob>

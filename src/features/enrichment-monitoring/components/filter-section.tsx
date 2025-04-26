@@ -1,6 +1,3 @@
-
-"use client";
-
 import * as React from "react";
 import { z } from "zod";
 import { useForm, Controller } from "react-hook-form"; // Keep react-hook-form
@@ -12,7 +9,6 @@ import {
   FormField,
   FormFieldLabel,
   FlowLayout,
-  Input,
   Option,
   Panel, // Use Panel instead of Card for grouping filters
 } from "@salt-ds/core";
@@ -87,11 +83,27 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
   // Convert DateValue from DateInput to 'yyyy-MM-dd' string
   const handleDateChange = (fieldOnChange: (...event: any[]) => void) => (newDateValue?: DateValue) => {
       if (newDateValue) {
+        // DateValue month is 0-indexed, Date constructor needs 0-indexed month
         fieldOnChange(format(new Date(newDateValue.year, newDateValue.month, newDateValue.day), 'yyyy-MM-dd'));
       } else {
         fieldOnChange(undefined);
       }
   };
+
+  // Convert string 'yyyy-MM-dd' to DateValue for DateInput
+  const stringToDateValue = (dateString?: string): DateValue | undefined => {
+    if (!dateString) return undefined;
+    try {
+        const date = parse(dateString, 'yyyy-MM-dd', new Date());
+        if (isValid(date)) {
+            return { year: date.getFullYear(), month: date.getMonth(), day: date.getDate() };
+        }
+    } catch (e) {
+        console.error("Error parsing date string for DateValue:", dateString, e);
+    }
+    return undefined;
+  };
+
 
   return (
     // Use Panel for grouping filters, adjust variant as needed
@@ -160,13 +172,12 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
                   <FormField style={{ flex: '1 1 180px' }}>
                       <FormFieldLabel>Start Date</FormFieldLabel>
                       <DateInput
-                          // Convert string back to DateValue for the component
-                          selectedDate={field.value ? parse(field.value, 'yyyy-MM-dd', new Date()) : undefined}
+                          selectedDate={stringToDateValue(field.value)}
                           onChange={handleDateChange(field.onChange)}
                           startAdornment={<CalendarIcon />}
                           inputProps={{ placeholder: "YYYY-MM-DD" }}
+                          validationStatus={errors.dateRange?.from ? 'error' : undefined}
                       />
-                      {/* {errors.dateRange?.from && <Text color="negative">Invalid start date</Text>} */}
                   </FormField>
               )}
           />
@@ -177,12 +188,12 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
                   <FormField style={{ flex: '1 1 180px' }}>
                       <FormFieldLabel>End Date</FormFieldLabel>
                       <DateInput
-                          selectedDate={field.value ? parse(field.value, 'yyyy-MM-dd', new Date()) : undefined}
+                          selectedDate={stringToDateValue(field.value)}
                           onChange={handleDateChange(field.onChange)}
                           startAdornment={<CalendarIcon />}
                            inputProps={{ placeholder: "YYYY-MM-DD" }}
+                           validationStatus={errors.dateRange?.to ? 'error' : undefined}
                       />
-                      {/* {errors.dateRange?.to && <Text color="negative">Invalid end date</Text>} */}
                   </FormField>
               )}
           />
@@ -197,4 +208,3 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
     </Panel>
   );
 }
-
