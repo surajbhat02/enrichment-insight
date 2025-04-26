@@ -50,12 +50,12 @@ const filterFormSchema = z.object({
 
 // Explicitly type the form values including the "all" possibility for select defaults
 type FilterFormValuesInput = z.infer<typeof filterFormSchema> & {
-    datasetType?: string | 'all';
-    status?: string | 'all';
+    datasetType?: string | 'all'; // Allow 'all' for the select state
+    status?: string | 'all'; // Allow 'all' for the select state
 };
 
 // Type for the filters passed to the handler (without "all")
-type FilterValues = Omit<FilterFormValuesInput, 'datasetType' | 'status'> & {
+export type FilterValues = Omit<FilterFormValuesInput, 'datasetType' | 'status'> & {
     datasetType?: string;
     status?: string;
 };
@@ -69,8 +69,8 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
   const form = useForm<FilterFormValuesInput>({ // Use the input type here
     resolver: zodResolver(filterFormSchema),
     defaultValues: {
-        datasetType: 'all', // Use 'all' instead of ''
-        status: 'all',      // Use 'all' instead of ''
+        datasetType: 'all', // Use 'all' as the default value
+        status: 'all',      // Use 'all' as the default value
         dateRange: { from: undefined, to: undefined }
     }
   });
@@ -104,7 +104,7 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {/* Use 'all' as value instead of empty string */}
+                    {/* Use 'all' as value */}
                     <SelectItem value="all">All Types</SelectItem>
                     {datasetTypes.map((type) => (
                       <SelectItem key={type} value={type}>
@@ -131,7 +131,7 @@ export function FilterSection({ onApplyFilters }: FilterSectionProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                     {/* Use 'all' as value instead of empty string */}
+                     {/* Use 'all' as value */}
                     <SelectItem value="all">All Statuses</SelectItem>
                     {jobStatuses.map((status) => (
                       <SelectItem key={status} value={status}>

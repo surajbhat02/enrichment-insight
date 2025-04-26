@@ -3,9 +3,9 @@
 
 import * as React from "react";
 import { Navbar } from "@/components/layout/navbar";
-import { JobStatusCards } from "@/components/dashboard/job-status-cards";
-import { FilterSection } from "@/components/dashboard/filter-section";
-import { EnrichmentGrid } from "@/components/dashboard/enrichment-grid";
+import { JobStatusCards } from "@/features/enrichment-monitoring/components/job-status-cards";
+import { FilterSection, type FilterValues } from "@/features/enrichment-monitoring/components/filter-section";
+import { EnrichmentGrid } from "@/features/enrichment-monitoring/components/enrichment-grid";
 import type { EnrichmentJob, JobStatus } from "@/types";
 import { Card, CardContent } from "@/components/ui/card"; // Import Card for wrapping
 
@@ -69,22 +69,8 @@ const allJobs: EnrichmentJob[] = [
 ];
 
 
-interface FilterValues {
-  datasetType?: string;
-  status?: string;
-  dateRange?: {
-    from?: Date;
-    to?: Date;
-  };
-}
-
 export default function Home() {
   const [filteredJobs, setFilteredJobs] = React.useState<EnrichmentJob[]>(allJobs);
-  const [isMounted, setIsMounted] = React.useState(false); // Track client mount
-
-  React.useEffect(() => {
-      setIsMounted(true); // Set mounted state after initial render
-  }, []);
 
 
   // Basic filtering logic (replace with more robust logic if needed)
@@ -114,31 +100,15 @@ export default function Home() {
   };
 
 
-  // Use a key prop on EnrichmentGrid dependent on isMounted to force re-render
-  // or pass isMounted down to the grid/rows if finer control is needed.
-  // For simplicity, we'll just ensure the grid uses the initial static data for SSR.
-  // The filtering logic will run client-side anyway.
-  // No need to pass isMounted down explicitly if FilterSection and EnrichmentGrid
-  // already handle client-side interactions correctly.
-
   return (
     <>
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6">
-        {/* Wrap cards, filters, and grid in a Card for visual grouping if desired */}
-        {/* <Card className="p-6"> */}
           <JobStatusCards />
           <FilterSection onApplyFilters={handleApplyFilters}/>
           {/* Pass the potentially filtered jobs */}
           <EnrichmentGrid jobs={filteredJobs} />
-        {/* </Card> */}
       </main>
-       {/* Optional Footer */}
-       {/* <footer className="bg-secondary py-4 mt-auto">
-         <div className="container mx-auto px-4 text-center text-muted-foreground text-sm">
-           © {new Date().getFullYear()} Enrichment Insights
-         </div>
-       </footer> */}
     </>
   );
 }

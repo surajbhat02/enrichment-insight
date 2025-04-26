@@ -63,31 +63,18 @@ const statusStyles: Record<JobStatus, { icon: React.ReactNode; variant: "default
     pending: { icon: <Circle className="h-4 w-4" />, variant: "outline", className: "bg-gray-100 text-gray-600 border-gray-300" },
 };
 
-// Helper to format date/time consistently for SSR
-const formatAbsoluteDateTime = (date?: Date): string => {
+// Helper to format date/time consistently for SSR and client
+// Ensures the same format is used on both server and client initially
+const formatConsistentDateTime = (date?: Date): string => {
   if (!date) return '-';
-  return format(date, "MMM d, yyyy HH:mm");
+  // Use a consistent, non-relative format like ISO 8601 or a specific format
+  // return date.toISOString(); // Option 1: ISO String
+  return format(date, "MMM d, yyyy HH:mm:ss"); // Option 2: Consistent format
 };
 
 function JobRow({ job, level = 0, isExpanded, onToggleExpand }: { job: EnrichmentJob; level?: number; isExpanded: boolean; onToggleExpand: (id: string) => void }) {
   const hasChildren = job.dependentJobs && job.dependentJobs.length > 0;
   const statusInfo = statusStyles[job.status];
-  const [isMounted, setIsMounted] = React.useState(false);
-
-   React.useEffect(() => {
-    setIsMounted(true); // Component did mount
-  }, []);
-
-  const formatDateTime = (date?: Date) => {
-    if (!date) return '-';
-
-    // On the client, after mount, use relative time if recent, otherwise absolute
-    if (isMounted && Date.now() - date.getTime() <= 1000 * 60 * 60 * 24) {
-       return formatDistanceToNow(date, { addSuffix: true });
-    }
-    // For SSR or older dates on client, use absolute format
-    return formatAbsoluteDateTime(date);
-  }
 
 
   return (
@@ -112,8 +99,8 @@ function JobRow({ job, level = 0, isExpanded, onToggleExpand }: { job: Enrichmen
           </Badge>
         </TableCell>
         <TableCell>{job.datasetType}</TableCell>
-        <TableCell>{formatDateTime(job.startTime)}</TableCell>
-        <TableCell>{job.status === 'running' || job.status === 'pending' ? '-' : formatDateTime(job.endTime)}</TableCell>
+        <TableCell>{formatConsistentDateTime(job.startTime)}</TableCell>
+        <TableCell>{job.status === 'running' || job.status === 'pending' ? '-' : formatConsistentDateTime(job.endTime)}</TableCell>
       </TableRow>
       {hasChildren && isExpanded && job.dependentJobs?.map((depJob) => (
         <JobRow
