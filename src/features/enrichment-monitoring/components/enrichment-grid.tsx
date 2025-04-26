@@ -3,19 +3,15 @@
 
 import * as React from "react";
 import type { EnrichmentJob, JobStatus } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, CheckCircle, Loader, XCircle, Circle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { format, formatDistanceToNow } from 'date-fns';
-import { cn } from "@/lib/utils";
+import { DataGrid, Column, RowSelectionCheckboxColumn, CellRendererProps, ExpanderColumn, RowKeyGetter } from "@salt-ds/lab";
+import { Badge, Text, FlexLayout, Panel, StatusIndicator } from "@salt-ds/core"; // Use Panel instead of Card
+import { CheckSolidIcon, RefreshIcon, ErrorIcon, ClockIcon, InfoIcon } from "@salt-ds/icons"; // Salt icons
+import { format } from 'date-fns';
 
-// Placeholder Data - Use static dates to avoid hydration issues
-const baseTime = new Date(2024, 3, 25, 10, 0, 0); // Example: April 25, 2024 10:00:00
-
+// --- Placeholder Data (Keep as is) ---
+const baseTime = new Date(2024, 3, 25, 10, 0, 0);
 const placeholderJobs: EnrichmentJob[] = [
-  {
+   {
     id: "job-001",
     name: "Customer Data Cleansing",
     status: "completed",
@@ -23,8 +19,8 @@ const placeholderJobs: EnrichmentJob[] = [
     endTime: new Date(baseTime.getTime() - 1000 * 60 * 30),     // 9:30 AM
     datasetType: "Customer",
     dependentJobs: [
-      { id: "dep-001a", name: "Address Validation", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 60 * 2), endTime: new Date(baseTime.getTime() - 1000 * 60 * 50), datasetType: "Customer" }, // 8:00 AM -> 9:10 AM
-      { id: "dep-001b", name: "Duplicate Check", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 45), endTime: new Date(baseTime.getTime() - 1000 * 60 * 30), datasetType: "Customer" }, // 9:15 AM -> 9:30 AM
+      { id: "dep-001a", name: "Address Validation", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 60 * 2), endTime: new Date(baseTime.getTime() - 1000 * 60 * 50), datasetType: "Customer" },
+      { id: "dep-001b", name: "Duplicate Check", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 45), endTime: new Date(baseTime.getTime() - 1000 * 60 * 30), datasetType: "Customer" },
     ],
   },
   {
@@ -34,8 +30,8 @@ const placeholderJobs: EnrichmentJob[] = [
     startTime: new Date(baseTime.getTime() - 1000 * 60 * 15), // 9:45 AM
     datasetType: "Product",
     dependentJobs: [
-       { id: "dep-002a", name: "Image Analysis", status: "running", startTime: new Date(baseTime.getTime() - 1000 * 60 * 15), datasetType: "Product" }, // 9:45 AM
-       { id: "dep-002b", name: "Text Description NLP", status: "pending", startTime: new Date(baseTime.getTime() - 1000 * 60 * 5), datasetType: "Product" }, // 9:55 AM (as pending)
+       { id: "dep-002a", name: "Image Analysis", status: "running", startTime: new Date(baseTime.getTime() - 1000 * 60 * 15), datasetType: "Product" },
+       { id: "dep-002b", name: "Text Description NLP", status: "pending", startTime: new Date(baseTime.getTime() - 1000 * 60 * 5), datasetType: "Product" },
     ],
   },
   {
@@ -54,66 +50,51 @@ const placeholderJobs: EnrichmentJob[] = [
     datasetType: "Inventory",
   },
 ];
+// --- End Placeholder Data ---
 
 
-const statusStyles: Record<JobStatus, { icon: React.ReactNode; variant: "default" | "secondary" | "destructive" | "outline"; className: string }> = {
-    completed: { icon: <CheckCircle className="h-4 w-4" />, variant: "secondary", className: "bg-green-100 text-green-800 border-green-300" },
-    running: { icon: <Loader className="h-4 w-4 animate-spin" />, variant: "secondary", className: "bg-blue-100 text-blue-800 border-blue-300" },
-    failed: { icon: <XCircle className="h-4 w-4" />, variant: "destructive", className: "bg-red-100 text-red-800 border-red-300" },
-    pending: { icon: <Circle className="h-4 w-4" />, variant: "outline", className: "bg-gray-100 text-gray-600 border-gray-300" },
+// Status Indicator mapping for Salt
+const statusIndicators: Record<JobStatus, { intent: 'positive' | 'negative' | 'info' | 'warning', icon?: React.ReactNode }> = {
+    completed: { intent: "positive", icon: <CheckSolidIcon /> },
+    running: { intent: "info", icon: <RefreshIcon /> }, // Or use Spinner if preferred
+    failed: { intent: "negative", icon: <ErrorIcon /> },
+    pending: { intent: "warning", icon: <ClockIcon /> }, // Using warning for pending
 };
 
-// Helper to format date/time consistently for SSR and client
-// Ensures the same format is used on both server and client initially
-const formatConsistentDateTime = (date?: Date): string => {
-  if (!date) return '-';
-  // Use a consistent, non-relative format like ISO 8601 or a specific format
-  // return date.toISOString(); // Option 1: ISO String
-  return format(date, "MMM d, yyyy HH:mm:ss"); // Option 2: Consistent format
-};
-
-function JobRow({ job, level = 0, isExpanded, onToggleExpand }: { job: EnrichmentJob; level?: number; isExpanded: boolean; onToggleExpand: (id: string) => void }) {
-  const hasChildren = job.dependentJobs && job.dependentJobs.length > 0;
-  const statusInfo = statusStyles[job.status];
-
+// Cell renderer for status
+const StatusCell = ({ value }: CellRendererProps<EnrichmentJob, JobStatus>) => {
+  const statusInfo = statusIndicators[value];
+  if (!statusInfo) return <Text>{value}</Text>;
 
   return (
-    <>
-      <TableRow className={level > 0 ? "bg-muted/50 hover:bg-muted" : "hover:bg-secondary/50"}>
-        <TableCell style={{ paddingLeft: `${level * 1.5 + 1}rem` }}>
-          <div className="flex items-center gap-2">
-            {hasChildren ? (
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onToggleExpand(job.id)}>
-                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              </Button>
-            ) : (
-              <span className="inline-block w-6"></span> // Placeholder for alignment
-            )}
-             <span className="font-medium">{job.name}</span>
-           </div>
-        </TableCell>
-        <TableCell>
-          <Badge variant={statusInfo.variant} className={cn("flex items-center gap-1 w-fit", statusInfo.className)}>
-            {statusInfo.icon}
-            {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
-          </Badge>
-        </TableCell>
-        <TableCell>{job.datasetType}</TableCell>
-        <TableCell>{formatConsistentDateTime(job.startTime)}</TableCell>
-        <TableCell>{job.status === 'running' || job.status === 'pending' ? '-' : formatConsistentDateTime(job.endTime)}</TableCell>
-      </TableRow>
-      {hasChildren && isExpanded && job.dependentJobs?.map((depJob) => (
-        <JobRow
-            key={depJob.id}
-            job={depJob}
-            level={level + 1}
-            isExpanded={false} // Child rows are not expandable in this simple version
-            onToggleExpand={() => {}} // No toggle for children here
-         />
-      ))}
-    </>
+    <FlexLayout gap={0.5} align="center">
+      <StatusIndicator intent={statusInfo.intent} />
+      <Text style={{ textTransform: 'capitalize' }}>{value}</Text>
+    </FlexLayout>
   );
-}
+};
+
+// Cell renderer for dates
+const DateCell = ({ value }: CellRendererProps<EnrichmentJob, Date | undefined>) => {
+  if (!value) return <Text> - </Text>;
+  // Format date consistently
+  try {
+     return <Text>{format(value, "MMM d, yyyy HH:mm:ss")}</Text>;
+  } catch (e) {
+    // Handle potential invalid date objects during SSR/hydration mismatches
+    console.error("Error formatting date:", value, e);
+    return <Text>Invalid Date</Text>;
+  }
+};
+
+// Row key getter for DataGrid
+const rowKeyGetter: RowKeyGetter<EnrichmentJob> = (row) => row.id;
+
+// Function to check if a row has children
+const hasChildren = (row: EnrichmentJob): boolean => !!row.dependentJobs && row.dependentJobs.length > 0;
+
+// Function to get children for a row
+const getChildRows = (row: EnrichmentJob): EnrichmentJob[] | undefined => row.dependentJobs;
 
 
 interface EnrichmentGridProps {
@@ -121,60 +102,77 @@ interface EnrichmentGridProps {
 }
 
 export function EnrichmentGrid({ jobs }: EnrichmentGridProps) {
- const [expandedRows, setExpandedRows] = React.useState<Record<string, boolean>>({});
+    // Use placeholderJobs for default props to ensure SSR consistency
+    const displayJobs = jobs && jobs.length > 0 ? jobs : placeholderJobs;
 
-  const toggleExpand = (id: string) => {
-    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+    // State for expanded rows is handled internally by DataGrid via `isRowExpanded`/`setRowExpanded`
 
-  // Use placeholderJobs for default props to ensure SSR consistency
-  const displayJobs = jobs ?? placeholderJobs;
-
-
-  if (!displayJobs || displayJobs.length === 0) {
+    if (!displayJobs || displayJobs.length === 0) {
     return (
-      <Card className="mt-6 shadow-sm">
-        <CardHeader>
-          <CardTitle>Enrichment Runs</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-8">No enrichment jobs found matching the criteria.</p>
-        </CardContent>
-      </Card>
+      <Panel style={{ marginTop: 'var(--salt-spacing-3)'}}>
+         <Text style={{ textAlign: 'center', padding: 'var(--salt-spacing-4)' }}>
+          No enrichment jobs found matching the criteria.
+        </Text>
+      </Panel>
     );
   }
 
 
   return (
-    <Card className="mt-6 shadow-sm">
-      <CardHeader>
-        <CardTitle>Enrichment Runs</CardTitle>
-      </CardHeader>
-      <CardContent>
-         {/* Basic Table Implementation */}
-         <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Job Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Dataset Type</TableHead>
-                    <TableHead>Start Time</TableHead>
-                    <TableHead>End Time</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                 {displayJobs.map((job) => (
-                    <JobRow
-                        key={job.id}
-                        job={job}
-                        isExpanded={!!expandedRows[job.id]}
-                        onToggleExpand={toggleExpand}
-                    />
-                ))}
-            </TableBody>
-         </Table>
-      </CardContent>
-    </Card>
+    <Panel style={{ marginTop: 'var(--salt-spacing-3)', overflow: 'hidden' }}>
+        {/* Set height explicitly for DataGrid */}
+        <div style={{ height: '600px', width: '100%' }}>
+            <DataGrid<EnrichmentJob>
+                rowData={displayJobs}
+                rowKeyGetter={rowKeyGetter}
+                zebra={true}
+                // For nested data:
+                getChildRows={getChildRows}
+                // isRowExpanded={isRowExpanded} // Control expanded state if needed externally
+                // setRowExpanded={setRowExpanded} // Control expanded state if needed externally
+            >
+                {/* Expander column for nested rows */}
+                <ExpanderColumn<EnrichmentJob>
+                    id="expander"
+                    hasChildren={hasChildren} // Provide function to check for children
+                />
+                {/* Other columns */}
+                <Column<EnrichmentJob>
+                    id="name"
+                    headerName="Job Name"
+                    field="name"
+                    defaultWidth={250}
+                />
+                 <Column<EnrichmentJob, JobStatus>
+                    id="status"
+                    headerName="Status"
+                    field="status"
+                    cellRenderer={StatusCell}
+                    defaultWidth={150}
+                 />
+                 <Column<EnrichmentJob>
+                    id="datasetType"
+                    headerName="Dataset Type"
+                    field="datasetType"
+                    defaultWidth={150}
+                 />
+                <Column<EnrichmentJob, Date | undefined>
+                    id="startTime"
+                    headerName="Start Time"
+                    field="startTime"
+                    cellRenderer={DateCell}
+                    defaultWidth={200}
+                />
+                <Column<EnrichmentJob, Date | undefined>
+                    id="endTime"
+                    headerName="End Time"
+                    field="endTime"
+                    cellRenderer={DateCell}
+                    defaultWidth={200}
+                 />
+            </DataGrid>
+        </div>
+    </Panel>
   );
 }
 
@@ -182,4 +180,3 @@ export function EnrichmentGrid({ jobs }: EnrichmentGridProps) {
 EnrichmentGrid.defaultProps = {
   jobs: placeholderJobs,
 };
-

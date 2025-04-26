@@ -2,203 +2,199 @@
 "use client";
 
 import * as React from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { format } from "date-fns";
-import { CalendarIcon, FilterIcon } from "lucide-react";
-
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { useForm, Controller } from "react-hook-form"; // Keep react-hook-form
+import { zodResolver } from "@hookform/resolvers/zod"; // Keep zodResolver
+import { format, isValid, parse } from "date-fns";
 import {
-  Form,
-  FormControl,
+  Button,
+  Dropdown,
   FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card } from "@/components/ui/card"; // Added Card import
+  FormFieldLabel,
+  FlowLayout,
+  Input,
+  Option,
+  Panel, // Use Panel instead of Card for grouping filters
+} from "@salt-ds/core";
+import { DateInput, DateValue } from "@salt-ds/lab"; // Use Salt DateInput
+import { FilterIcon, CalendarIcon } from "@salt-ds/icons"; // Use Salt icons
 import type { JobStatus } from "@/types";
 
-
-// TODO: Populate dataset types from an API or configuration
+// --- Data (Keep as is) ---
 const datasetTypes = ["Customer", "Product", "Sales", "Inventory", "Logs"];
 const jobStatuses: JobStatus[] = ["completed", "running", "failed", "pending"];
+const ALL_VALUE = "all"; // Constant for 'all' option value
 
+// --- Schema (Keep as is) ---
 const filterFormSchema = z.object({
   datasetType: z.string().optional(),
-  status: z.string().optional(), // Consider using z.enum([...jobStatuses, 'all']) if strict validation is needed
+  status: z.string().optional(),
   dateRange: z.object({
-    from: z.date().optional(),
-    to: z.date().optional(),
+    // Store dates as strings for DateInput compatibility, convert on submit
+    from: z.string().optional(),
+    to: z.string().optional(),
   }).optional(),
 });
 
-// Explicitly type the form values including the "all" possibility for select defaults
-type FilterFormValuesInput = z.infer<typeof filterFormSchema> & {
-    datasetType?: string | 'all'; // Allow 'all' for the select state
-    status?: string | 'all'; // Allow 'all' for the select state
-};
+// Type for form values used by react-hook-form (stores dates as strings)
+type FilterFormValuesInput = z.infer<typeof filterFormSchema>;
 
-// Type for the filters passed to the handler (without "all")
-export type FilterValues = Omit<FilterFormValuesInput, 'datasetType' | 'status'> & {
+// Type for the filters passed to the handler (converts dates to Date objects)
+export type FilterValues = {
     datasetType?: string;
     status?: string;
+    dateRange?: {
+        from?: Date;
+        to?: Date;
+    }
 };
 
-
+// --- Component ---
 interface FilterSectionProps {
     onApplyFilters: (filters: FilterValues) => void;
 }
 
+// Helper to safely parse date strings
+const parseDate = (dateString?: string): Date | undefined => {
+  if (!dateString) return undefined;
+  const parsed = parse(dateString, 'yyyy-MM-dd', new Date());
+  return isValid(parsed) ? parsed : undefined;
+}
+
 export function FilterSection({ onApplyFilters }: FilterSectionProps) {
-  const form = useForm<FilterFormValuesInput>({ // Use the input type here
+  const { control, handleSubmit, formState: { errors } } = useForm<FilterFormValuesInput>({
     resolver: zodResolver(filterFormSchema),
     defaultValues: {
-        datasetType: 'all', // Use 'all' as the default value
-        status: 'all',      // Use 'all' as the default value
+        datasetType: ALL_VALUE,
+        status: ALL_VALUE,
         dateRange: { from: undefined, to: undefined }
     }
   });
 
  function onSubmit(data: FilterFormValuesInput) {
-    // Create a clean filter object to pass, converting "all" to undefined
     const cleanFilters: FilterValues = {
-        dateRange: data.dateRange,
-        datasetType: data.datasetType === 'all' ? undefined : data.datasetType,
-        status: data.status === 'all' ? undefined : data.status,
+        datasetType: data.datasetType === ALL_VALUE ? undefined : data.datasetType,
+        status: data.status === ALL_VALUE ? undefined : data.status,
+        dateRange: {
+            from: parseDate(data.dateRange?.from),
+            to: parseDate(data.dateRange?.to)
+        }
     };
     console.log("Applying filters:", cleanFilters);
     onApplyFilters(cleanFilters);
-    // TODO: Trigger data refetch for the grid based on these filters
   }
 
+  // Convert DateValue from DateInput to 'yyyy-MM-dd' string
+  const handleDateChange = (fieldOnChange: (...event: any[]) => void) => (newDateValue?: DateValue) => {
+      if (newDateValue) {
+        fieldOnChange(format(new Date(newDateValue.year, newDateValue.month, newDateValue.day), 'yyyy-MM-dd'));
+      } else {
+        fieldOnChange(undefined);
+      }
+  };
+
   return (
-    <Card className="p-4 mb-6 shadow-sm bg-secondary">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-0 md:flex md:flex-wrap md:items-end md:gap-4">
-          <FormField
-            control={form.control}
+    // Use Panel for grouping filters, adjust variant as needed
+    <Panel>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Use FlowLayout for responsive arrangement of filters */}
+        <FlowLayout gap={2} align="end" style={{ padding: 'var(--salt-spacing-2)' }}>
+
+          {/* Dataset Type Filter */}
+          <Controller
             name="datasetType"
+            control={control}
             render={({ field }) => (
-              <FormItem className="flex-1 min-w-[150px]">
-                <FormLabel>Dataset Type</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {/* Use 'all' as value */}
-                    <SelectItem value="all">All Types</SelectItem>
+              <FormField style={{ flex: '1 1 150px' }}>
+                 <FormFieldLabel>Dataset Type</FormFieldLabel>
+                 <Dropdown<string>
+                    selected={field.value ? [field.value] : []}
+                    onSelectionChange={(_, selectedItem) => field.onChange(selectedItem || ALL_VALUE)}
+                    value={field.value} // Ensure Dropdown value is controlled
+                    style={{ width: '100%' }}
+                  >
+                    <Option value={ALL_VALUE}>All Types</Option>
                     {datasetTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
+                      <Option key={type} value={type}>
                         {type}
-                      </SelectItem>
+                      </Option>
                     ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
+                  </Dropdown>
+                 {/* Basic error display - improve as needed */}
+                 {/* {errors.datasetType && <Text color="negative">{errors.datasetType.message}</Text>} */}
+              </FormField>
             )}
           />
 
-          <FormField
-            control={form.control}
+          {/* Status Filter */}
+          <Controller
             name="status"
+            control={control}
             render={({ field }) => (
-              <FormItem className="flex-1 min-w-[150px]">
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                     {/* Use 'all' as value */}
-                    <SelectItem value="all">All Statuses</SelectItem>
+              <FormField style={{ flex: '1 1 150px' }}>
+                 <FormFieldLabel>Status</FormFieldLabel>
+                  <Dropdown<string>
+                    selected={field.value ? [field.value] : []}
+                    onSelectionChange={(_, selectedItem) => field.onChange(selectedItem || ALL_VALUE)}
+                    value={field.value}
+                    style={{ width: '100%' }}
+                  >
+                    <Option value={ALL_VALUE}>All Statuses</Option>
                     {jobStatuses.map((status) => (
-                      <SelectItem key={status} value={status}>
+                      <Option key={status} value={status}>
                         {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </SelectItem>
+                      </Option>
                     ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
+                  </Dropdown>
+                 {/* {errors.status && <Text color="negative">{errors.status.message}</Text>} */}
+              </FormField>
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="dateRange"
-            render={({ field }) => (
-              <FormItem className="flex flex-col min-w-[240px]">
-                 <FormLabel>Date Range</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !field.value?.from && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value?.from ? (
-                          field.value.to ? (
-                            <>
-                              {format(field.value.from, "LLL dd, y")} -{" "}
-                              {format(field.value.to, "LLL dd, y")}
-                            </>
-                          ) : (
-                            format(field.value.from, "LLL dd, y")
-                          )
-                        ) : (
-                          <span>Pick a date range</span>
-                        )}
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={field.value?.from}
-                      selected={{ from: field.value?.from, to: field.value?.to }}
-                      onSelect={(range) => field.onChange(range || {from: undefined, to: undefined})}
-                      numberOfMonths={2}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
+          {/* Date Range Filter */}
+          {/* Using two DateInput fields for range start and end */}
+          <Controller
+              name="dateRange.from"
+              control={control}
+              render={({ field }) => (
+                  <FormField style={{ flex: '1 1 180px' }}>
+                      <FormFieldLabel>Start Date</FormFieldLabel>
+                      <DateInput
+                          // Convert string back to DateValue for the component
+                          selectedDate={field.value ? parse(field.value, 'yyyy-MM-dd', new Date()) : undefined}
+                          onChange={handleDateChange(field.onChange)}
+                          startAdornment={<CalendarIcon />}
+                          inputProps={{ placeholder: "YYYY-MM-DD" }}
+                      />
+                      {/* {errors.dateRange?.from && <Text color="negative">Invalid start date</Text>} */}
+                  </FormField>
+              )}
+          />
+          <Controller
+              name="dateRange.to"
+              control={control}
+              render={({ field }) => (
+                  <FormField style={{ flex: '1 1 180px' }}>
+                      <FormFieldLabel>End Date</FormFieldLabel>
+                      <DateInput
+                          selectedDate={field.value ? parse(field.value, 'yyyy-MM-dd', new Date()) : undefined}
+                          onChange={handleDateChange(field.onChange)}
+                          startAdornment={<CalendarIcon />}
+                           inputProps={{ placeholder: "YYYY-MM-DD" }}
+                      />
+                      {/* {errors.dateRange?.to && <Text color="negative">Invalid end date</Text>} */}
+                  </FormField>
+              )}
           />
 
-          <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-             <FilterIcon className="mr-2 h-4 w-4" /> Apply Filters
+
+          {/* Apply Button */}
+          <Button type="submit" variant="cta">
+            <FilterIcon aria-hidden /> Apply Filters
           </Button>
-        </form>
-      </Form>
-    </Card>
+        </FlowLayout>
+      </form>
+    </Panel>
   );
 }
 

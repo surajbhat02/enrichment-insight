@@ -1,12 +1,14 @@
-
 import type { JobStatus } from "@/types";
+import { Card, FlowLayout, H3, Text } from "@salt-ds/core";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { CheckCircle, PlayCircle, XCircle, Loader, List } from "lucide-react";
+  CheckSolidIcon,
+  RefreshIcon, // Using RefreshIcon for running state
+  ErrorIcon,
+  ListIcon, // Using ListIcon for total
+  InfoIcon // Placeholder/default icon
+} from "@salt-ds/icons";
+import { Spinner } from "@salt-ds/lab"; // Import Spinner for running state
+import * as React from 'react'; // Import React
 
 interface JobStats {
   total: number;
@@ -23,38 +25,42 @@ const placeholderStats: JobStats = {
   failed: 12,
 };
 
-const statusIcons: Record<keyof JobStats | 'total', React.ReactNode> = {
-  total: <List className="h-5 w-5 text-muted-foreground" />,
-  completed: <CheckCircle className="h-5 w-5 text-green-500" />,
-  running: <Loader className="h-5 w-5 text-blue-500 animate-spin" />,
-  failed: <XCircle className="h-5 w-5 text-red-500" />,
-}
-
-const statusLabels: Record<keyof JobStats, string> = {
-  total: "Total Jobs",
-  completed: "Completed",
-  running: "Running",
-  failed: "Failed",
-}
+const statusInfo: Record<keyof JobStats | 'total', { icon: React.ReactNode; label: string; intent?: 'positive' | 'negative' | 'warning' | 'info'}> = {
+  total: { icon: <ListIcon size={1} aria-hidden />, label: "Total Jobs", intent: "info" },
+  completed: { icon: <CheckSolidIcon size={1} aria-hidden />, label: "Completed", intent: "positive" },
+  // Using Spinner for running state
+  running: { icon: <Spinner size="small" aria-label="Running" style={{ display: 'inline-flex' }}/>, label: "Running", intent: "info" },
+  failed: { icon: <ErrorIcon size={1} aria-hidden />, label: "Failed", intent: "negative" },
+};
 
 export function JobStatusCards() {
   const stats = placeholderStats; // Replace with fetched data
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {(Object.keys(stats) as Array<keyof JobStats>).map((key) => (
-         <Card key={key} className="shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{statusLabels[key]}</CardTitle>
-             {statusIcons[key]}
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats[key]}</div>
-             {/* Optional: Add secondary text like percentage change */}
-            {/* <p className="text-xs text-muted-foreground">+20.1% from last month</p> */}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    // Use FlowLayout for responsive wrapping grid
+    <FlowLayout gap={2}>
+      {(Object.keys(stats) as Array<keyof JobStats>).map((key) => {
+         const info = statusInfo[key];
+         return (
+            <Card
+                key={key}
+                // Apply intent for visual distinction (optional)
+                // accent={info.intent} // Card accent prop if desired
+                style={{ flex: '1 1 200px', minWidth: '200px' }} // Responsive sizing
+            >
+                <H3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--salt-spacing-1)'}}>
+                    <span>{info.label}</span>
+                    {/* Conditionally render icon or spinner */}
+                    {key === 'running' ? info.icon : React.cloneElement(info.icon as React.ReactElement, { 'aria-label': info.label })}
+                </H3>
+                <Text styleAs="h1" style={{ marginTop: 'var(--salt-spacing-1)', fontWeight: 'bold' }}>
+                    {stats[key]}
+                </Text>
+                {/* Optional: Add secondary text */}
+                {/* <Text styleAs="label" color="secondary">Description</Text> */}
+            </Card>
+         );
+      })}
+    </FlowLayout>
   );
 }

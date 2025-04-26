@@ -1,13 +1,17 @@
-import { BrainCircuit } from "lucide-react"; // Replaced Insights with BrainCircuit
+import { Header, HeaderAction, HeaderContent } from '@salt-ds/lab';
+import { H1 } from '@salt-ds/core';
+import { MonitorIcon } from '@salt-ds/icons'; // Use a relevant Salt icon
 
 export function Navbar() {
   return (
-    <nav className="bg-primary text-primary-foreground shadow-md">
-      <div className="container mx-auto px-4 py-3 flex items-center">
-        <BrainCircuit className="h-6 w-6 mr-2" /> {/* Replaced Insights with BrainCircuit */}
-        <h1 className="text-xl font-semibold">Enrichment Insights</h1>
-        {/* Add other navbar items here if needed */}
-      </div>
-    </nav>
+    <Header>
+      {/* Adjust variant='primary' based on desired Salt look */}
+      <HeaderContent>
+        <MonitorIcon size={1} style={{ marginRight: 'var(--salt-spacing-1)' }} />
+        <H1 style={{ margin: 0 }}>Enrichment Insights</H1>
+      </HeaderContent>
+      {/* Add HeaderActions if needed */}
+      {/* <HeaderAction>Action 1</HeaderAction> */}
+    </Header>
   );
 }

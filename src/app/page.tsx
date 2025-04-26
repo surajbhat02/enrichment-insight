@@ -2,18 +2,17 @@
 "use client"; // Required for state and event handlers
 
 import * as React from "react";
-import { Navbar } from "@/components/layout/navbar";
+import { Navbar } from "@/components/layout/navbar"; // Assuming Navbar is adapted for Salt
 import { JobStatusCards } from "@/features/enrichment-monitoring/components/job-status-cards";
 import { FilterSection, type FilterValues } from "@/features/enrichment-monitoring/components/filter-section";
 import { EnrichmentGrid } from "@/features/enrichment-monitoring/components/enrichment-grid";
 import type { EnrichmentJob, JobStatus } from "@/types";
-import { Card, CardContent } from "@/components/ui/card"; // Import Card for wrapping
+import { StackLayout, FlowLayout } from "@salt-ds/core"; // Use Salt layout components
 
-// Placeholder Data - Use static dates to avoid hydration issues
-const baseTime = new Date(2024, 3, 25, 10, 0, 0); // Example: April 25, 2024 10:00:00
-
+// --- Placeholder Data (Keep as is) ---
+const baseTime = new Date(2024, 3, 25, 10, 0, 0);
 const allJobs: EnrichmentJob[] = [
-   {
+  {
     id: "job-001",
     name: "Customer Data Cleansing",
     status: "completed",
@@ -21,8 +20,8 @@ const allJobs: EnrichmentJob[] = [
     endTime: new Date(baseTime.getTime() - 1000 * 60 * 30),     // 9:30 AM
     datasetType: "Customer",
     dependentJobs: [
-      { id: "dep-001a", name: "Address Validation", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 60 * 2), endTime: new Date(baseTime.getTime() - 1000 * 60 * 50), datasetType: "Customer" }, // 8:00 AM -> 9:10 AM
-      { id: "dep-001b", name: "Duplicate Check", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 45), endTime: new Date(baseTime.getTime() - 1000 * 60 * 30), datasetType: "Customer" }, // 9:15 AM -> 9:30 AM
+      { id: "dep-001a", name: "Address Validation", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 60 * 2), endTime: new Date(baseTime.getTime() - 1000 * 60 * 50), datasetType: "Customer" },
+      { id: "dep-001b", name: "Duplicate Check", status: "completed", startTime: new Date(baseTime.getTime() - 1000 * 60 * 45), endTime: new Date(baseTime.getTime() - 1000 * 60 * 30), datasetType: "Customer" },
     ],
   },
   {
@@ -32,8 +31,8 @@ const allJobs: EnrichmentJob[] = [
     startTime: new Date(baseTime.getTime() - 1000 * 60 * 15), // 9:45 AM
     datasetType: "Product",
     dependentJobs: [
-       { id: "dep-002a", name: "Image Analysis", status: "running", startTime: new Date(baseTime.getTime() - 1000 * 60 * 15), datasetType: "Product" }, // 9:45 AM
-       { id: "dep-002b", name: "Text Description NLP", status: "pending", startTime: new Date(baseTime.getTime() - 1000 * 60 * 5), datasetType: "Product" }, // 9:55 AM (as pending)
+       { id: "dep-002a", name: "Image Analysis", status: "running", startTime: new Date(baseTime.getTime() - 1000 * 60 * 15), datasetType: "Product" },
+       { id: "dep-002b", name: "Text Description NLP", status: "pending", startTime: new Date(baseTime.getTime() - 1000 * 60 * 5), datasetType: "Product" },
     ],
   },
   {
@@ -67,13 +66,13 @@ const allJobs: EnrichmentJob[] = [
     datasetType: "Customer",
   },
 ];
+// --- End Placeholder Data ---
 
 
 export default function Home() {
   const [filteredJobs, setFilteredJobs] = React.useState<EnrichmentJob[]>(allJobs);
 
-
-  // Basic filtering logic (replace with more robust logic if needed)
+  // --- Filtering Logic (Keep as is) ---
   const handleApplyFilters = (filters: FilterValues) => {
     let tempJobs = [...allJobs];
 
@@ -89,27 +88,35 @@ export default function Home() {
       tempJobs = tempJobs.filter(job => job.startTime >= filters.dateRange!.from!);
     }
      if (filters.dateRange?.to) {
-        // Adjust 'to' date to include the whole day
         const toDate = new Date(filters.dateRange.to);
         toDate.setHours(23, 59, 59, 999);
         tempJobs = tempJobs.filter(job => job.startTime <= toDate);
     }
-
-
     setFilteredJobs(tempJobs);
   };
-
+  // --- End Filtering Logic ---
 
   return (
-    <>
+    <StackLayout // Use StackLayout for vertical arrangement
+      direction="column"
+      style={{ minHeight: '100vh' }} // Ensure layout takes full height
+    >
       <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-6 space-y-6">
+       {/* Use StackLayout for main content with padding */}
+      <StackLayout
+        gap={3} // Adjust gap as needed (Salt uses multipliers of 4px)
+        style={{ padding: 'var(--salt-spacing-3)', flexGrow: 1 }} // Use Salt spacing tokens
+      >
+          {/* Job Status Cards */}
           <JobStatusCards />
+
+          {/* Filter Section */}
           <FilterSection onApplyFilters={handleApplyFilters}/>
-          {/* Pass the potentially filtered jobs */}
+
+          {/* Enrichment Grid */}
           <EnrichmentGrid jobs={filteredJobs} />
-      </main>
-    </>
+      </StackLayout>
+    </StackLayout>
   );
 }
 
